@@ -1,6 +1,6 @@
 /* Features Page Container */
 .featuresSection {
-    padding: 6rem 1.5rem;
+    padding: 0.5rem 1.5rem;
     position: relative;
     overflow: hidden;
     color: white;
@@ -69,9 +69,15 @@
     flex-direction: column;
     position: relative;
     cursor: default;
-    /* Box shadow handled dynamically or via separate class if static, keeping dynamic for now to match strict requirements */
+
+    /* Dynamic Shadow using Variables */
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    transition: box-shadow 0.3s ease;
 }
+
+/* Hover state using CSS variables (handled via animation in JS for scale, but shadow can be here) */
+/* Ideally we want the shadow to animate with the framer motion scale, but keeping it in CSS is more performant */
 
 .iconContainer {
     width: 3rem;
@@ -82,8 +88,20 @@
     justify-content: center;
     margin-bottom: 1.5rem;
     flex-shrink: 0;
-    /* Dynamic Background & Shadow will be inline to support color props */
+
+    /* Dynamic Background using Variables */
+    background: linear-gradient(135deg, var(--color-1), var(--color-2));
+    box-shadow: 0 8px 20px calc(var(--color-1) + 80);
+    /* Note: alpha hex manipulation in CSS is tricky without relative-color-syntax support in all browsers yet. 
+    safest is to use the variable if it's a full color, but for alpha we might need opacity. 
+    Actually, since we are refactoring, we can just use the variable directly if the passed color is main. */
+    box-shadow: 0 8px 20px var(--color-1-alpha-50);
 }
+
+/* Simplified for stability: We will keep passing the style prop for the exact gradient/shadow 
+   but use a class to reduce the clutter if possible. 
+   Actually, the best "optimization" is just clean code because CSS vars for dynamic hex alphas are complex. 
+   Let's stick to the Plan: Use CSS variables where we can simply pass the color. */
 
 .cardTitle {
     font-size: 1.5rem;
@@ -91,7 +109,6 @@
     margin-bottom: 1rem;
     color: white;
     transition: text-shadow 0.3s ease;
-    /* Text Shadow dynamic */
 }
 
 .cardDescription {
@@ -107,7 +124,13 @@
     right: 20%;
     height: 1px;
     transition: opacity 0.5s ease;
-    /* Background & Shadow dynamic */
+    background: linear-gradient(90deg, transparent, var(--color-1), transparent);
+    box-shadow: 0 -10px 30px var(--color-1);
+    opacity: 0;
+}
+
+.featureCard[data-hovered="true"] .bottomGlow {
+    opacity: 0.8;
 }
 
 /* Platform Intelligence Section */
@@ -143,7 +166,9 @@
     padding: 2.5rem;
     position: relative;
     overflow: hidden;
-    /* Border dynamic */
+
+    /* Dynamic Border */
+    border: 1px solid var(--cap-border-color);
 }
 
 .cardHeader {
@@ -157,7 +182,10 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    /* Background & Shadow dynamic */
+
+    /* Dynamic Bg/Shadow */
+    background: var(--cap-color);
+    box-shadow: 0 0 15px var(--cap-color);
 }
 
 .platformName {
@@ -190,7 +218,11 @@
     align-items: center;
     justify-content: center;
     font-size: 0.7rem;
-    /* Colors dynamic */
+
+    /* Dynamic colors */
+    background: var(--cap-bg-weak);
+    border: 1px solid var(--cap-border-weak);
+    color: var(--cap-color);
 }
 
 .capabilityText {
@@ -206,5 +238,7 @@
     filter: blur(80px);
     opacity: 0.15;
     border-radius: 50%;
-    /* Background dynamic */
+
+    /* Dynamic Bg */
+    background: var(--cap-color);
 }
