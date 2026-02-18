@@ -103,7 +103,8 @@ describe('useChatHandler', () => {
 
         const mockBackendResponse = {
             reply: "Sure",
-            command: { type: "play", timing: "AFTER_TTS" }
+            command: { type: "play", timing: "AFTER_TTS" as const, params: {} },
+            action_outcome: 'SUCCESS' as const
         };
 
         let processed: any;
@@ -117,7 +118,7 @@ describe('useChatHandler', () => {
 
     it('should execute deferred command', async () => {
         const { result } = renderHook(() => useChatHandler());
-        const mockCommand = { type: "play", timing: "AFTER_TTS" };
+        const mockCommand = { type: "play", timing: "AFTER_TTS" as const, params: {} };
 
         // Manually set pending command state (simulating handleBackendResponse)
         act(() => {

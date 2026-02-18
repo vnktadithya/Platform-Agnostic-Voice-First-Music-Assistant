@@ -91,7 +91,7 @@ Stores the credentials for connected services.
 *   `id`: Primary key.
 *   `system_user_id`: Foreign Key to **system_users**.
 *   `platform_name`: "spotify" | "soundcloud".
-*   `access_token`, `refresh_token`: Encrypted storage.
+*   `access_token`, `refresh_token`: **AES-Encrypted** storage (Fernet) to prevent credential leakage.
 *   `meta_data`: JSON column for platform-specific extras (profile pic, user URI).
 *   `last_synced`: Timestamp of the last full library sync.
 
