@@ -22,7 +22,8 @@ export const ImageSequence = ({ onCycleComplete, instantStart = false }: ImageSe
     const TOTAL_FRAMES = 192;
     const FPS = 24; // Cinematic 24fps
     const FRAME_INTERVAL = 1000 / FPS;
-    const SEQUENCE_PATH = '/landing_page_sequence/ezgif-frame-';
+    const API_URL = import.meta.env.VITE_API_URL || '';
+    const SEQUENCE_PATH = `${API_URL}/static/landing_page_sequence/ezgif-frame-`;
 
     const frameIndexRef = useRef(0);
     const lastFrameTimeRef = useRef(0);
@@ -44,6 +45,7 @@ export const ImageSequence = ({ onCycleComplete, instantStart = false }: ImageSe
 
         for (let i = 1; i <= TOTAL_FRAMES; i++) {
             const img = new Image();
+            img.crossOrigin = 'anonymous';
             img.src = `${SEQUENCE_PATH}${pad(i)}.png`;
             img.onload = () => {
                 loadedCount++;

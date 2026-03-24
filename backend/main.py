@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import logging
@@ -27,6 +28,9 @@ logger = logging.getLogger(__name__)
 # database_models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Voice Assistant Backend", version="1.0.0")
+
+os.makedirs("backend/static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 
 app.mount("/socket.io", socket_app)
 # Fallback mount if needed, though socket.io handles paths
