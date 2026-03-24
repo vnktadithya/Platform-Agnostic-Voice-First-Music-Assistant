@@ -163,7 +163,9 @@ export const ImageSequence = ({ onCycleComplete, instantStart = false }: ImageSe
 
                     // Clear canvas
                     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-                    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+                    if (img.complete && img.naturalWidth > 0) {
+                        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+                    }
                 }
 
                 lastFrameTimeRef.current = timestamp - (elapsed % FRAME_INTERVAL);
