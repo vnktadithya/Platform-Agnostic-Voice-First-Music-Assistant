@@ -3,11 +3,10 @@
 # For the original Groq (lowest-latency) version, see LLM_service.groq.py
 import os
 import json
+import requests
 from dotenv import load_dotenv
 import logging
 from backend.utils.action_params import ACTION_REQUIRED_PARAMS
-from google import genai
-from google.genai import types
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -16,7 +15,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 def call_llm_agent(user_text: str, short_reply: bool = True, action_keys: list = []) -> dict:
     """
     Calls the Google Gemini API to understand user intent for the music assistant.
-    Uses gemini-2.5-flash for optimal speed and intelligence on Azure.
+    Uses gemini-2.5-flash via REST API for optimal speed and region compatibility.
     
     For local development with even lower latency, swap to LLM_service.groq.py
     which uses Groq's LPU-powered Llama 3.3 70B.
@@ -92,22 +91,30 @@ Available Actions: {available_actions_prompt}
 
 """ + user_text  # user_text contains "Conversation so far: ... User now: ..." from dialog_manager
 
+    # Gemini REST API endpoint (bypasses SDK region restrictions)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    body = {
+        "system_instruction": {
+            "parts": [{"text": "You are a helpful assistant that outputs strictly in JSON format."}]
+        },
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.3,
+            "maxOutputTokens": 1024,
+            "responseMimeType": "application/json"
+        }
+    }
+
     try:
+        resp = requests.post(url, headers=headers, json=body, timeout=60)
         
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        if resp.status_code != 200:
+            logger.error(f"Gemini API Error: {resp.text}")
+            raise Exception(f"Gemini API call failed with status {resp.status_code}: {resp.text}")
         
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-lite-preview",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction="You are a helpful assistant that outputs strictly in JSON format.",
-                temperature=0.3,
-                max_output_tokens=1024,
-                response_mime_type="application/json",
-            )
-        )
-        
-        content = response.text
+        response_json = resp.json()
+        content = response_json["candidates"][0]["content"]["parts"][0]["text"]
         
         # Parse JSON
         result = json.loads(content)

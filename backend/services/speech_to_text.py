@@ -3,10 +3,9 @@
 # For the original Groq (lowest-latency) version, see speech_to_text.groq.py
 import os
 import base64
+import requests
 import logging
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -16,7 +15,7 @@ class SpeechToTextService:
     @staticmethod
     def transcribe_audio(file_obj) -> str:
         """
-        Transcribes audio using Google Gemini's multimodal capabilities.
+        Transcribes audio using Google Gemini's multimodal capabilities via REST API.
         Accepts a file-like object (bytesIO or UploadFile.file) directly.
         
         Gemini natively transliterates foreign words (Telugu, Hindi, Tamil, etc.)
@@ -29,14 +28,14 @@ class SpeechToTextService:
             raise ValueError("GEMINI_API_KEY is missing. Get a free key from https://aistudio.google.com/app/apikey and add it to your .env file.")
 
         try:
-            
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            
             # Read the audio bytes
             if isinstance(file_obj, bytes):
                 audio_bytes = file_obj
             else:
                 audio_bytes = file_obj.read()
+            
+            # Encode audio as base64 for inline data
+            audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
             
             # Transliteration prompt: output must be in English letters ONLY
             prompt_text = (
@@ -48,22 +47,35 @@ class SpeechToTextService:
                 "Output ONLY the transcribed text, nothing else. No quotes, no explanations."
             )
             
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[
-                    prompt_text,
-                    types.Part.from_bytes(
-                        data=audio_bytes,
-                        mime_type="audio/wav"
-                    )
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=0.0,
-                    max_output_tokens=1024,
-                )
-            )
+            # Gemini REST API endpoint (bypasses SDK region restrictions)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+            headers = {"Content-Type": "application/json"}
+            body = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt_text},
+                        {
+                            "inline_data": {
+                                "mime_type": "audio/wav",
+                                "data": audio_b64
+                            }
+                        }
+                    ]
+                }],
+                "generationConfig": {
+                    "temperature": 0.0,
+                    "maxOutputTokens": 1024
+                }
+            }
             
-            transcript = response.text.strip()
+            resp = requests.post(url, headers=headers, json=body, timeout=30)
+            
+            if resp.status_code != 200:
+                logger.error(f"Gemini STT Error: {resp.text}")
+                raise Exception(f"Gemini STT API Failed: {resp.status_code} - {resp.text}")
+            
+            response_json = resp.json()
+            transcript = response_json["candidates"][0]["content"]["parts"][0]["text"].strip()
             
             logger.info(f"Gemini Transcription: {transcript}")
             return transcript

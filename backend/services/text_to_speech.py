@@ -4,10 +4,10 @@
 import os
 import io
 import wave
+import base64
+import requests
 import logging
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ class TextToSpeechService:
     @staticmethod
     def synthesize_speech(text: str) -> bytes:
         """
-        Synthesizes speech using Google Gemini's TTS capabilities.
+        Synthesizes speech using Google Gemini's TTS capabilities via REST API.
         Returns raw audio bytes (WAV) without writing to disk.
         
         For local development with even lower latency, swap to text_to_speech.groq.py
@@ -27,26 +27,34 @@ class TextToSpeechService:
             raise ValueError("GEMINI_API_KEY is missing. Get a free key from https://aistudio.google.com/app/apikey and add it to your .env file.")
 
         try:
+            # Gemini TTS REST API endpoint
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key={GEMINI_API_KEY}"
+            headers = {"Content-Type": "application/json"}
+            body = {
+                "contents": [{"parts": [{"text": text}]}],
+                "generationConfig": {
+                    "responseModalities": ["AUDIO"],
+                    "speechConfig": {
+                        "voiceConfig": {
+                            "prebuiltVoiceConfig": {
+                                "voiceName": "Kore"
+                            }
+                        }
+                    }
+                }
+            }
             
-            client = genai.Client(api_key=GEMINI_API_KEY)
+            resp = requests.post(url, headers=headers, json=body, timeout=60)
             
-            response = client.models.generate_content(
-                model="gemini-2.5-flash-preview-tts",
-                contents=text,
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                voice_name="Kore"
-                            )
-                        )
-                    ),
-                ),
-            )
+            if resp.status_code != 200:
+                logger.error(f"Gemini TTS Error: {resp.text}")
+                raise Exception(f"Gemini TTS API Failed: {resp.status_code} - {resp.text}")
             
-            # Extract audio data from response
-            audio_data = response.candidates[0].content.parts[0].inline_data.data
+            response_json = resp.json()
+            
+            # Extract base64 audio data from response
+            audio_b64 = response_json["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+            audio_data = base64.b64decode(audio_b64)
             
             # The Gemini TTS API returns raw PCM 24kHz 16-bit mono audio
             # We need to wrap it in a WAV header for browser playback
