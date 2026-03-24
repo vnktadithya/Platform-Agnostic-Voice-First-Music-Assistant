@@ -6,6 +6,8 @@ import json
 from dotenv import load_dotenv
 import logging
 from backend.utils.action_params import ACTION_REQUIRED_PARAMS
+from google import genai
+from google.genai import types
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -91,8 +93,6 @@ Available Actions: {available_actions_prompt}
 """ + user_text  # user_text contains "Conversation so far: ... User now: ..." from dialog_manager
 
     try:
-        from google import genai
-        from google.genai import types
         
         client = genai.Client(api_key=GEMINI_API_KEY)
         

@@ -6,6 +6,8 @@ import io
 import wave
 import logging
 from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -25,8 +27,6 @@ class TextToSpeechService:
             raise ValueError("GEMINI_API_KEY is missing. Get a free key from https://aistudio.google.com/app/apikey and add it to your .env file.")
 
         try:
-            from google import genai
-            from google.genai import types
             
             client = genai.Client(api_key=GEMINI_API_KEY)
             
