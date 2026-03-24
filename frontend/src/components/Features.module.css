@@ -208,6 +208,12 @@
     align-items: center;
     gap: 10px;
     color: rgba(255, 255, 255, 0.9);
+    transition: transform 0.2s ease-in-out;
+    transform-origin: left center;
+}
+
+.capabilityItem:hover {
+    transform: scale(1.1);
 }
 
 .checkIcon {

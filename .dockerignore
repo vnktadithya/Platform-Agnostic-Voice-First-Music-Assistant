@@ -1,0 +1,53 @@
+# ===========================
+# .dockerignore
+# ===========================
+# Keeps the Docker build context small and fast.
+# Only the backend code and requirements.txt are needed.
+
+# --- Version Control ---
+.git
+.gitignore
+
+# --- Frontend (built separately on Azure Static Web Apps) ---
+frontend/
+
+# --- Python / Virtual Env ---
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.cache
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- Environment / Secrets ---
+.env
+.env.*
+
+# --- Local Databases & Temp ---
+*.db
+temp_audio/
+tmp/
+
+# --- Docker ---
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# --- Documentation & Assets ---
+docs/
+*.md
+LICENSE
+
+# --- OS ---
+.DS_Store
+Thumbs.db

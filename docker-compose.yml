@@ -1,0 +1,119 @@
+# =============================================================================
+# docker-compose.yml — SAM Backend Stack
+# =============================================================================
+# Orchestrates the FastAPI API server, Celery worker, and Celery beat scheduler.
+# Redis is NOT included here — we use Upstash (external serverless Redis).
+#
+# Usage:
+#   docker compose up -d --build        # Build and start all services
+#   docker compose logs -f              # Tail logs from all services
+#   docker compose down                 # Stop and remove containers
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # API — FastAPI + Gunicorn + Uvicorn
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sam-api
+    restart: always
+    ports:
+      - "80:8000"   # Map host port 80 → container port 8000
+    env_file:
+      - .env
+    environment:
+      - ENV=production
+    volumes:
+      - audio_tmp:/app/temp_audio    # Persist temp audio files across restarts
+      - celery_tmp:/app/tmp          # Shared tmp for celery beat schedule
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M               # Cap at 512MB (B1s VM has 1GB total)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Worker — Celery task consumer (library sync, token refresh, cache purge)
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sam-worker
+    restart: always
+    command: >
+      celery -A backend.celery_worker worker
+      --loglevel=info
+      --pool=gevent
+      --concurrency=4
+    env_file:
+      - .env
+    environment:
+      - ENV=production
+    volumes:
+      - celery_tmp:/app/tmp
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 300M               # Celery worker is lighter
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Beat — Celery periodic task scheduler
+  # ---------------------------------------------------------------------------
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sam-beat
+    restart: always
+    command: >
+      celery -A backend.celery_worker beat
+      --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - ENV=production
+    volumes:
+      - celery_tmp:/app/tmp          # Beat schedule file lives here
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128M               # Beat is extremely lightweight
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+# =============================================================================
+# Named Volumes — Persist data across container restarts
+# =============================================================================
+volumes:
+  audio_tmp:
+    driver: local
+  celery_tmp:
+    driver: local

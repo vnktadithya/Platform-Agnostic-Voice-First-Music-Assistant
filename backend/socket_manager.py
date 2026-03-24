@@ -22,6 +22,5 @@ async def disconnect(sid):
 async def emit_state(state: str, message: str = ""):
     """
     Helper to emit state changes to all clients.
-    States: IDLE, LISTENING, THINKING, SPEAKING
     """
     await sio.emit('state_update', {'state': state, 'message': message})

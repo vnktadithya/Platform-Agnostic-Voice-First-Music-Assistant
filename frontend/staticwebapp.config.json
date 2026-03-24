@@ -1,0 +1,16 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/assets/*", "/favicon.ico", "/*.svg", "/*.png", "/*.jpg", "/*.glb", "/*.gltf"]
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "microphone=(self)"
+  },
+  "mimeTypes": {
+    ".glb": "model/gltf-binary",
+    ".gltf": "model/gltf+json"
+  }
+}

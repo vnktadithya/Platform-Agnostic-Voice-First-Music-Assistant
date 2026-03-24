@@ -14,8 +14,8 @@ const WaveformBackground = ({ targetColor, targetPos }: { targetColor?: string |
     const shaderArgs = useMemo(() => ({
         uniforms: {
             uTime: { value: 0 },
-            uColor: { value: new THREE.Color('#8b5cf6') }, // Violet base
-            uBiasX: { value: 0.0 }, // Horizontal bias
+            uColor: { value: new THREE.Color('#8b5cf6') },
+            uBiasX: { value: 0.0 },
         },
         vertexShader: `
             varying vec2 vUv;
@@ -110,7 +110,7 @@ const WaveformBackground = ({ targetColor, targetPos }: { targetColor?: string |
 
             // Color Harmony Interpolation
             const target = new THREE.Color(targetColor || '#8b5cf6');
-            currentColor.current.lerp(target, 0.5); // Increased speed to be visible in ~2-3s
+            currentColor.current.lerp(target, 0.5);
             materialRef.current.uniforms.uColor.value.copy(currentColor.current);
 
             // Bias Interpolation
@@ -118,8 +118,7 @@ const WaveformBackground = ({ targetColor, targetPos }: { targetColor?: string |
             let targetBias = 0;
             if (targetPos) {
                 // targetPos is [x, y, z]. World width typically visible is -10 to 10 approx at depth 0
-                // Background is at -5 depth, so it covers even wider.
-                // We want bias -1 (left) to 1 (right).
+                // Background is at -5 depth, it covers even wider.
                 targetBias = Math.max(-1, Math.min(1, targetPos[0] / 8));
             }
             // Lerp bias smoothly
@@ -202,22 +201,15 @@ const Particles = ({ connecting }: { connecting: boolean }) => {
                 const dist = Math.sqrt(x * x + y * y + z * z);
 
                 // --- 1. Faint Wave Ripple ---
-                // A wave that travels outwards: sin(distance - rippleTime)
-                // Only affect if the wave front is near this particle
                 const waveFront = Math.abs(dist - rippleDist);
-                const rippleEffect = Math.max(0, 1 - waveFront * 0.5); // 1 at wave front, 0 elsewhere
+                const rippleEffect = Math.max(0, 1 - waveFront * 0.5);
 
                 if (rippleEffect > 0) {
-                    // Push particles slightly outward/upward as the ripple passes
                     waveY += rippleEffect * 0.5 * Math.sin(time * 10);
                     breatheZ += rippleEffect * 0.5;
                 }
 
                 // --- 2. Alignment ---
-                // "Particles slightly align" -> Reduce chaos, conform to a slight grid or flow
-                // We'll subtly pull Y towards 0 (a disc) or align to flow
-                // Let's damp the noise slightly based on ripple
-                // (Here implemented as a slight "taming" of the sine wave drift)
                 waveY *= 0.5;
             }
 
@@ -231,7 +223,7 @@ const Particles = ({ connecting }: { connecting: boolean }) => {
         // Alignment Effect:
         // If connecting, spin/align the whole field slightly faster or lock it
         const targetRotationSpeed = connecting ? 0.1 : 0.02;
-        particlesRef.current.rotation.y += (targetRotationSpeed - particlesRef.current.rotation.y) * 0.05; // Smooth accel
+        particlesRef.current.rotation.y += (targetRotationSpeed - particlesRef.current.rotation.y) * 0.05;
     });
 
     return (
@@ -247,7 +239,7 @@ const Particles = ({ connecting }: { connecting: boolean }) => {
             </bufferGeometry>
             <pointsMaterial
                 size={0.15}
-                color={connecting ? "#c4b5fd" : "#a78bfa"} // Slightly brighter/whiter when connecting
+                color={connecting ? "#c4b5fd" : "#a78bfa"}
                 map={circleTexture}
                 transparent
                 alphaTest={0.5}

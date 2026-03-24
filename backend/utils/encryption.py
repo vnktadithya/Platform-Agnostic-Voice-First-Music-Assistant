@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 def get_fernet() -> Fernet | None:
     """
     Returns a Fernet instance using the ENCRYPTION_KEY from environment variables.
-    
+    Raises an error if the key is missing.
     """
     key = os.getenv("ENCRYPTION_KEY")
     if not key:
-        return None
+        raise ValueError("ENCRYPTION_KEY not set!")
     try:
         return Fernet(key.encode())
     except Exception as e:

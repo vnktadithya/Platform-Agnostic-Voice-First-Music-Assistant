@@ -92,12 +92,12 @@ const SPOTIFY_CAPABILITIES = [
 ];
 
 const SOUNDCLOUD_CAPABILITIES = [
+    "Search: Find untagged/remix tracks in the full catalog",
     "Playback: Stream tracks via the visual widget",
     "Playlist Creation: Create new public playlists",
+    "Playlist Editing: Delete playlists & clear tracks",
     "Curate: Add any track to your playlists",
     "Favorites: Like / Unlike tracks to your library",
-    "Search: Find untagged/remix tracks in the full catalog",
-    "Playlist Editing: Delete playlists & clear tracks",
     "Library: Access your full Liked Tracks history",
     "Import: Syncs your existing personal playlists",
     "Metadata: View detailed track/artist info"
