@@ -91,21 +91,21 @@ Available Actions: {available_actions_prompt}
 """ + user_text  # user_text contains "Conversation so far: ... User now: ..." from dialog_manager
 
     try:
-        from google import genai
-        from google.genai import types
+        import google.generativeai as genai
         
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        genai.configure(api_key=GEMINI_API_KEY)
         
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-lite-preview",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction="You are a helpful assistant that outputs strictly in JSON format.",
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash-preview-05-20",
+            system_instruction="You are a helpful assistant that outputs strictly in JSON format.",
+            generation_config=genai.GenerationConfig(
                 temperature=0.3,
                 max_output_tokens=1024,
                 response_mime_type="application/json",
             )
         )
+        
+        response = model.generate_content(prompt)
         
         content = response.text
         

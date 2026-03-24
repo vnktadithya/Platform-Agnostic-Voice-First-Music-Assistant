@@ -2,6 +2,7 @@
 # Production: Google Gemini (Azure-compatible)
 # For the original Groq (lowest-latency) version, see speech_to_text.groq.py
 import os
+import io
 import base64
 import logging
 from dotenv import load_dotenv
@@ -27,16 +28,26 @@ class SpeechToTextService:
             raise ValueError("GEMINI_API_KEY is missing. Get a free key from https://aistudio.google.com/app/apikey and add it to your .env file.")
 
         try:
-            from google import genai
-            from google.genai import types
+            import google.generativeai as genai
             
-            client = genai.Client(api_key=GEMINI_API_KEY)
+            genai.configure(api_key=GEMINI_API_KEY)
             
             # Read the audio bytes
             if isinstance(file_obj, bytes):
                 audio_bytes = file_obj
             else:
                 audio_bytes = file_obj.read()
+            
+            # Encode audio as base64 for inline data
+            audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+            
+            model = genai.GenerativeModel(
+                model_name="gemini-2.5-flash-preview-05-20",
+                generation_config=genai.GenerationConfig(
+                    temperature=0.0,
+                    max_output_tokens=1024,
+                )
+            )
             
             # Transliteration prompt: output must be in English letters ONLY
             prompt_text = (
@@ -48,20 +59,13 @@ class SpeechToTextService:
                 "Output ONLY the transcribed text, nothing else. No quotes, no explanations."
             )
             
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[
-                    prompt_text,
-                    types.Part.from_bytes(
-                        data=audio_bytes,
-                        mime_type="audio/wav"
-                    )
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=0.0,
-                    max_output_tokens=1024,
-                )
-            )
+            response = model.generate_content([
+                prompt_text,
+                {
+                    "mime_type": "audio/wav",
+                    "data": audio_b64
+                }
+            ])
             
             transcript = response.text.strip()
             

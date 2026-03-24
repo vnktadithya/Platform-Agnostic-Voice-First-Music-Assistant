@@ -4,6 +4,7 @@
 import os
 import io
 import wave
+import struct
 import logging
 from dotenv import load_dotenv
 
