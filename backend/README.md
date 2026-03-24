@@ -4,8 +4,9 @@ The **SAM Backend** is a high-performance, asynchronous FastAPI application that
 
 ---
 
-## 🚀 Deployment (Render)
+## 🚀 Deployment
 
+### Render (Free Tier)
 The backend is configured for deployment on **Render** using the `render.yaml` blueprint.
 
 1.  **Web Service**: Runs the FastAPI app using `gunicorn` with `uvicorn` workers for production-grade concurrency.
@@ -13,6 +14,24 @@ The backend is configured for deployment on **Render** using the `render.yaml` b
 3.  **Redis**: Utilized as both the Celery message broker and the real-time cache.
 
 Configuration is defined in `render.yaml`, with environment variables managed securely via the Render Dashboard.
+
+### Azure (Always-On, Docker Compose)
+For 24/7 availability, the backend is also deployed on an **Azure VM** using `docker-compose.yml`:
+
+| Container | Role | Memory Limit |
+| :--- | :--- | :--- |
+| `sam-api` | FastAPI + Gunicorn | 512MB |
+| `sam-worker` | Celery Worker (Gevent) | 300MB |
+| `sam-beat` | Celery Beat Scheduler | 128MB |
+| `sam-caddy` | HTTPS Reverse Proxy (Let's Encrypt) | 64MB |
+
+```bash
+docker compose up -d --build    # Start all services
+docker compose logs -f          # Tail logs
+docker compose down             # Stop all services
+```
+
+Configuration is defined in `docker-compose.yml`, with environment variables loaded from `.env`.
 
 ---
 
@@ -22,7 +41,7 @@ Configuration is defined in `render.yaml`, with environment variables managed se
 - **Database**: PostgreSQL, SQLAlchemy (ORM), Redis
 - **Real-time & Async**: Python-SocketIO, Uvicorn (ASGI)
 - **Task Queue**: Celery (Gevent), Redis Broker
-- **AI & Processing**: Groq Cloud (Llama 3, Whisper, TTS), TheFuzz
+- **AI & Processing**: Groq Cloud (Llama 3.3, Whisper, Orpheus TTS) for local development, Google Gemini (3.1 Flash-Lite, 2.5 Flash, 2.5 Flash TTS) for cloud deployment, TheFuzz
 - **Testing**: Pytest
 
 ---
@@ -34,11 +53,11 @@ The backend prioritizes **latency** and **accuracy**. The core processing loop i
 ### 1. The Voice/Chat Pipeline
 1.  **Ingestion & Transliteration**:
     *   **Endpoint**: `/v1/chat/process_voice` or `/v1/chat/process_text`.
-    *   **STT Engine**: Groq (Whisper-large-v3) converts audio to text.
+    *   **STT Engine**: Groq (Whisper-large-v3) for local dev; Gemini 2.5 Flash for cloud deployment.
     *   **Innovation**: We use a custom system prompt to force *transliteration* of non-English terms (e.g., Telugu song titles) into Latin script. This is critical for compatibility with music search APIs.
 2.  **Intent Understanding (LLM)**:
-    *   **Engine**: Groq (Llama 3-8b-8192).
-    *   **Service**: `LLM_service.py` wraps the LLM calls.
+    *   **Engine**: Groq (Llama 3.3-70B) for local dev; Gemini 3.1 Flash-Lite for cloud deployment.
+    *   **Service**: `LLM_service.py` wraps the LLM calls (Gemini production version). Original Groq implementation preserved in `LLM_service.groq.py`.
     *   **Context**: Controlled by `DialogManager`, which maintains a session history (via `SessionManager` + Redis) to support follow-up queries (e.g., "Play it" implies the song mentioned previously).
     *   **Output**: Structured JSON containing the `action` (PLAY, PAUSE, ADD_TO_PLAYLIST, LIKE_SONG ETC), `parameters` (song_name, artist_name, playlist_name etc), and `reply` (text response).
 3.  **Action Execution**:
@@ -64,14 +83,14 @@ The logic is modularized into `backend/services/`:
 | Service | Responsibility |
 | :--- | :--- |
 | **`dialog_manager.py`** | Manages conversation flow. It orchestrates the LLM call, action parsing, and response generation. |
-| **`LLM_service.py`** | Wraps interactions with the Groq API (Llama 3), handling prompt construction and JSON parsing. |
+| **`LLM_service.py`** | Wraps interactions with the Google Gemini API (production). Original Groq version preserved in `LLM_service.groq.py`. |
 | **`music_action_service.py`** | The "Router". It receives high-level intents (PLAY, SKIP) and delegates them to the correct platform adapter. |
 | **`session_manager.py`** | Manages user session state and context history in Redis, enabling multi-turn conversations. |
 | **`socket_manager.py`** | Handles real-time WebSockets to push state updates (LISTENING, THINKING, SPEAKING) to the frontend. |
 | **`library_sync_service.py`** | Handles the massive job of fetching, parsing, and storing thousands of songs/playlists from Spotify/SoundCloud into our local DB. |
 | **`data_sync_service.py`** | The "Glue" connecting Celery workers to the sync logic. Handles token refreshing and task distribution. |
-| **`speech_to_text.py`** | Wrapper for Groq's transcription API. |
-| **`text_to_speech.py`** | Wrapper for Groq's TTS API service. |
+| **`speech_to_text.py`** | Gemini multimodal audio transcription with native transliteration. Groq version in `speech_to_text.groq.py`. |
+| **`text_to_speech.py`** | Gemini TTS voice synthesis. Groq version in `text_to_speech.groq.py`. |
 | **`cache_service.py`** | Abstracted interface for Redis operations. |
 
 ---
