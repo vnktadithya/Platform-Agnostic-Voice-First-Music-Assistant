@@ -70,12 +70,6 @@ personal-voice-assistant/
 │   │   ├── v1/              # REST endpoints
 │   ├── configurations/      # Postgres and Redis Configuration
 │   ├── services/            # Core business logic (LLM, Sync, Search)
-│   │   ├── LLM_service.py          # Gemini (production/cloud)
-│   │   ├── LLM_service.groq.py     # Groq (local dev, lowest latency)
-│   │   ├── speech_to_text.py       # Gemini (production/cloud)
-│   │   ├── speech_to_text.groq.py  # Groq (local dev)
-│   │   ├── text_to_speech.py       # Gemini (production/cloud)
-│   │   ├── text_to_speech.groq.py  # Groq (local dev)
 │   ├── models/              # Database schemas (SQLAlchemy)
 │   ├── tests/               # Unit and Integration tests
 │   ├── utils/               # Helper functions
