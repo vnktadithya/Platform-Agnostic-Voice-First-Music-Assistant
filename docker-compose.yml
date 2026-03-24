@@ -119,7 +119,7 @@ services:
     ports:
       - "80:80"        # Required for Let's Encrypt HTTP challenge
       - "443:443"      # Required for HTTPS traffic
-    command: caddy reverse-proxy --from 20-6-128-37.nip.io --to api:8000
+    command: caddy reverse-proxy --from 20-193-151-160.nip.io --to api:8000
     depends_on:
       api:
         condition: service_healthy
