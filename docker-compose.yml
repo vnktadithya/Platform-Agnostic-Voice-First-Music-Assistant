@@ -21,7 +21,7 @@ services:
     container_name: sam-api
     restart: always
     ports:
-      - "80:8000"   # Map host port 80 → container port 8000
+      - "8000:8000"   # Mapped for internal use only, Caddy will handle 80/443
     env_file:
       - .env
     environment:
@@ -109,6 +109,28 @@ services:
         max-size: "5m"
         max-file: "2"
 
+  # ---------------------------------------------------------------------------
+  # Caddy — Automated HTTPS Reverse Proxy
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2
+    container_name: sam-caddy
+    restart: always
+    ports:
+      - "80:80"        # Required for Let's Encrypt HTTP challenge
+      - "443:443"      # Required for HTTPS traffic
+    command: caddy reverse-proxy --from 20-6-128-37.nip.io --to api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - caddy_data:/data   # Persists SSL certificates
+      - caddy_config:/config
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
 # =============================================================================
 # Named Volumes — Persist data across container restarts
 # =============================================================================
@@ -116,4 +138,8 @@ volumes:
   audio_tmp:
     driver: local
   celery_tmp:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
     driver: local
