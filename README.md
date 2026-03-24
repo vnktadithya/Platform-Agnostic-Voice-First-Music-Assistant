@@ -8,6 +8,7 @@
   [![Three.js](https://img.shields.io/badge/Three.js-Black?style=for-the-badge&logo=three.js&logoColor=white)](https://threejs.org/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
   [![Groq](https://img.shields.io/badge/AI-Groq%20Llama3-orange?style=for-the-badge)](https://groq.com/)
+  [![Gemini](https://img.shields.io/badge/AI-Gemini%202.5-blue?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
   [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
   [![Live Demo](https://img.shields.io/badge/Demo-View%20Live-brightgreen?style=for-the-badge&logo=vercel)](https://sam-self-adaptive-music-intelligence.vercel.app)
 
@@ -21,7 +22,7 @@
 
 ##  Overview
 
-**SAM** (Self Adaptive Music) is a next-generation voice assistant designed to revolutionize how you interact with music. Breaking away from static playlists, SAM uses advanced **LLMs (Groq Llama 3)** to understand natural language and intent, executing complex commands across multiple platforms like **Spotify** and **SoundCloud**.
+**SAM** (Self Adaptive Music) is a next-generation voice assistant designed to revolutionize how you interact with music. Breaking away from static playlists, SAM uses advanced **LLMs (Groq Llama 3)** to understand natural language and intent, executing complex commands across multiple platforms like **Spotify** and **SoundCloud**. For always-on cloud deployments (e.g., Azure), SAM seamlessly falls back to **Google Gemini** models, since Groq's free tier blocks datacenter IPs.
 
 All of this happens within a stunning **3D immersive interface** built with React Three Fiber, where the environment reacts to the music and your voice in real-time.
 
@@ -69,6 +70,12 @@ personal-voice-assistant/
 │   │   ├── v1/              # REST endpoints
 │   ├── configurations/      # Postgres and Redis Configuration
 │   ├── services/            # Core business logic (LLM, Sync, Search)
+│   │   ├── LLM_service.py          # Gemini (production/cloud)
+│   │   ├── LLM_service.groq.py     # Groq (local dev, lowest latency)
+│   │   ├── speech_to_text.py       # Gemini (production/cloud)
+│   │   ├── speech_to_text.groq.py  # Groq (local dev)
+│   │   ├── text_to_speech.py       # Gemini (production/cloud)
+│   │   ├── text_to_speech.groq.py  # Groq (local dev)
 │   ├── models/              # Database schemas (SQLAlchemy)
 │   ├── tests/               # Unit and Integration tests
 │   ├── utils/               # Helper functions
@@ -95,6 +102,8 @@ personal-voice-assistant/
 │   │   ├── index.css        # global styles
 │   ├── index.html           # Main entry point
 │   ├── README.md            # Frontend Architecture
+├── docker-compose.yml       # Production Docker stack (API, Worker, Beat, Caddy)
+├── Dockerfile               # Backend container image
 ├── docs/                    # Documentation assets
 └── README.md                # You are here
 ```
@@ -115,9 +124,15 @@ Before setting up SAM, ensure you meet the requirements for the music platforms 
 > 1.   **Active Account**: A free SoundCloud account is sufficient. No premium subscription is needed.
 > 2.   Register your new soundcloud application: [Create SoundCloud Application](https://soundcloud.com/you/apps/new).
 >
-> * **Groq API key:**
+> * **Groq API key (recommended for local development):**
 > 
 >   Get your API key here: [API keys - GroqCloud](https://console.groq.com/keys)
+>
+> * **Google Gemini API key (required for cloud/Azure deployment):**
+> 
+>   Get your free API key here: [Google AI Studio](https://aistudio.google.com/app/apikey)
+>   
+>   *Gemini is used for cloud deployments because Groq's free tier blocks datacenter IPs. For local development, Groq is recommended for its ultra-low latency.*
 
 ---
 
@@ -166,9 +181,13 @@ REDIS_PORT=6379
 SESSION_SECRET_KEY="your-session-secret-key"
 ENCRYPTION_KEY = "your-encryption-key"
 
-# --- AI & Voice ---
+# --- AI & Voice (Local Development) ---
 # Logic, TTS & STT: https://console.groq.com/keys
-GROQ_API_KEY="gsk_..." 
+GROQ_API_KEY="gsk_..."
+
+# --- AI & Voice (Cloud/Azure Deployment) ---
+# Required for Azure: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY="AIza..."
 
 # --- Spotify ---
 SPOTIFY_CLIENT_ID="your_spotify_client_id"
@@ -245,6 +264,20 @@ npm run dev
 
 Visit **`http://localhost:5173`** to enter SAM.
 
+### Alternative: Docker Compose (Production / Azure)
+
+For production deployment, Docker Compose runs the entire backend stack with a single command:
+
+```bash
+docker compose up -d --build
+```
+
+This starts all 3 backend services (API, Celery Worker, Celery Beat) + Caddy HTTPS reverse proxy automatically. You still need a separate terminal for the frontend:
+
+```bash
+cd frontend && npm run dev
+```
+
 ---
 
 ##  Usage
@@ -264,11 +297,12 @@ Once inside the application, click on mic button to activate the "Listening" sta
 
 The project is live at **[sam-self-adaptive-music-intelligence.vercel.app](https://sam-self-adaptive-music-intelligence.vercel.app)**.
 
-### Deployment Stack
+### Deployment Stack (Vercel + Render)
 *   **Frontend**: Deployed on **Vercel** for global edge caching.
 *   **Backend**: Deployed on **Render** (Python Web Service).
 *   **Database**: Managed by **Supabase** (PostgreSQL).
 *   **Caching & Broker**: Managed by **Upstash** (Serverless Redis).
+*   **AI Models**: **Groq** (Llama 3.3, Whisper, Orpheus TTS).
 
 > [!IMPORTANT]
 > **Access & Testing Policy**
@@ -277,6 +311,18 @@ The project is live at **[sam-self-adaptive-music-intelligence.vercel.app](https
 
 > [!NOTE]
 > **Cold Start Delay**: This project is deployed on Render's free tier, which spins down after 15 minutes of inactivity. If the demo feels unresponsive initially, please allow **1-2 minutes** for the backend to wake up.
+
+### Azure Deployment (Always-On, 24/7)
+
+For production-grade 24/7 availability without cold-start delays, SAM is also deployed on **Microsoft Azure**:
+
+*   **Frontend**: [Azure Static Web Apps](https://zealous-tree-09e892300.6.azurestaticapps.net) (Free Tier, CI/CD via GitHub Actions).
+*   **Backend**: Azure VM running Docker Compose with **Caddy** for automated HTTPS.
+*   **Database**: Azure PostgreSQL Flexible Server.
+*   **AI Models**: **Google Gemini** (3.1 Flash-Lite for LLM, 2.5 Flash for STT/TTS).
+
+> [!NOTE]
+> **Why Gemini instead of Groq on Azure?** Groq's free tier actively blocks API requests originating from cloud provider datacenter IPs (Azure, AWS, GCP). To maintain 24/7 uptime at zero cost, the Azure deployment uses Google Gemini as a drop-in replacement. The original Groq implementations are preserved as `backend/services/*.groq.py` backup files and remain the **recommended choice for local development** due to Groq's unmatched LPU inference speed.
 
 ---
 
