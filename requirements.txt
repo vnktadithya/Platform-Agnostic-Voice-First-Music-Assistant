@@ -25,3 +25,4 @@ gunicorn
 google-generativeai
 edge-tts
 nest-asyncio
+faster-whisper

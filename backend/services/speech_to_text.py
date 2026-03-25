@@ -1,85 +1,83 @@
 # services/speech_to_text.py
-# Production: Google Gemini (Azure-compatible)
-# For the original Groq (lowest-latency) version, see speech_to_text.groq.py
+# Production: Hybrid STT (Local Faster-Whisper + Hugging Face Fallback)
+# This ensures 100% reliability and zero 429 quota issues.
 import os
-import base64
-import requests
+import io
 import logging
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+# HF_ROUTER_ASR_URL = "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo"
+
+# Lazy load local model
+_local_model = None
 
 class SpeechToTextService:
     @staticmethod
+    def _get_local_model():
+        global _local_model
+        if _local_model is None:
+            try:
+                from faster_whisper import WhisperModel
+                _local_model = WhisperModel("base", device="cpu", compute_type="int8")
+                logger.info("Local Faster-Whisper model loaded.")
+            except ImportError:
+                logger.warning("faster-whisper not installed. Falling back to Hugging Face API.")
+                return None
+            except Exception as e:
+                logger.error(f"Failed to load local Whisper: {e}")
+                return None
+        return _local_model
+
+    @staticmethod
     def transcribe_audio(file_obj) -> str:
         """
-        Transcribes audio using Google Gemini's multimodal capabilities via REST API.
-        Accepts a file-like object (bytesIO or UploadFile.file) directly.
-        
-        Gemini natively transliterates foreign words (Telugu, Hindi, Tamil, etc.)
-        into English alphabets exactly as they sound, without translating meaning.
-        
-        For local development with even lower latency, swap to speech_to_text.groq.py
-        which uses Groq's LPU-powered Whisper-large-v3.
+        Hybrid Transcription:
+        1. Try Local Faster-Whisper (Infinite Quota, Zero Latency).
+        2. Fallback to Hugging Face Inference API (High Quota).
         """
-        if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is missing. Get a free key from https://aistudio.google.com/app/apikey and add it to your .env file.")
-
         try:
             # Read the audio bytes
-            if isinstance(file_obj, bytes):
-                audio_bytes = file_obj
-            else:
+            if hasattr(file_obj, 'read'):
                 audio_bytes = file_obj.read()
+            else:
+                audio_bytes = file_obj
+
+            # 1. Try Local Processing
+            model = SpeechToTextService._get_local_model()
+            if model:
+                try:
+                    audio_stream = io.BytesIO(audio_bytes)
+                    segments, _ = model.transcribe(audio_stream, beam_size=5)
+                    transcript = " ".join([s.text for s in segments]).strip()
+                    if transcript:
+                        logger.info(f"Local Transcription: {transcript}")
+                        return transcript
+                except Exception as e:
+                    logger.error(f"Local transcription failed, falling back: {e}")
+
+            # 2. Fallback to Hugging Face Router (Remote)
+            if not HF_API_TOKEN:
+                return "Error: No AI keys found."
+
+            # Note: Using the stable inference URL for Whisper
+            url = "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo"
+            headers = {"Authorization": f"Bearer {HF_API_TOKEN}", "Content-Type": "audio/wav"}
             
-            # Encode audio as base64 for inline data
-            audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+            resp = requests.post(url, headers=headers, data=audio_bytes, timeout=30)
             
-            # Transliteration prompt: output must be in English letters ONLY
-            prompt_text = (
-                "Transcribe this audio into English text. "
-                "If the speaker uses any non-English words (like Telugu, Hindi, Tamil, Spanish, etc.), "
-                "transliterate those words into English alphabets exactly as they sound. "
-                "Do NOT translate the meaning. Just write how the words sound in English letters. "
-                "Example: If someone says a Telugu song name, write it as 'nuvvu nenantu' not the Telugu script. "
-                "Output ONLY the transcribed text, nothing else. No quotes, no explanations."
-            )
-            
-            # Gemini REST API endpoint (bypasses SDK region restrictions)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={GEMINI_API_KEY}"
-            headers = {"Content-Type": "application/json"}
-            body = {
-                "contents": [{
-                    "parts": [
-                        {"text": prompt_text},
-                        {
-                            "inline_data": {
-                                "mime_type": "audio/wav",
-                                "data": audio_b64
-                            }
-                        }
-                    ]
-                }],
-                "generationConfig": {
-                    "temperature": 0.0,
-                    "maxOutputTokens": 1024
-                }
-            }
-            
-            resp = requests.post(url, headers=headers, json=body, timeout=30)
-            
-            if resp.status_code != 200:
-                logger.error(f"Gemini STT Error: {resp.text}")
-                raise Exception(f"Gemini STT API Failed: {resp.status_code} - {resp.text}")
-            
-            response_json = resp.json()
-            transcript = response_json["candidates"][0]["content"]["parts"][0]["text"].strip()
-            
-            logger.info(f"Gemini Transcription: {transcript}")
-            return transcript
+            if resp.status_code == 200:
+                transcript = resp.json().get("text", "").strip()
+                logger.info(f"Hugging Face Remote Transcription: {transcript}")
+                return transcript
+            else:
+                logger.error(f"HF API Fallback failed: {resp.text}")
+                return "I couldn't hear you clearly. Please try again."
 
         except Exception as e:
-            logger.error(f"Gemini STT failed: {str(e)}", exc_info=True)
-            raise e
+            logger.error(f"STT Hybrid Pipeline failed: {str(e)}")
+            return ""

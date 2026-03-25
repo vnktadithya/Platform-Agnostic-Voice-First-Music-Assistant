@@ -1,7 +1,5 @@
-# services/LLM_service.py
-# Production: Google Gemini (Azure-compatible)
-# For the original Groq (lowest-latency) version, see LLM_service.groq.py
 import os
+import requests
 import json
 from dotenv import load_dotenv
 import logging
@@ -9,19 +7,15 @@ from backend.utils.action_params import ACTION_REQUIRED_PARAMS
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 def call_llm_agent(user_text: str, short_reply: bool = True, action_keys: list = []) -> dict:
     """
-    Calls the Google Gemini API to understand user intent for the music assistant.
-    Uses gemini-2.5-flash for optimal speed and intelligence on Azure.
-    
-    For local development with even lower latency, swap to LLM_service.groq.py
-    which uses Groq's LPU-powered Llama 3.3 70B.
+    Calls the Groq API (Llama 3.3 70B) to understand user intent for the music assistant.
     """
-    if not GEMINI_API_KEY:
-         raise ValueError("GEMINI_API_KEY is missing. Get a free key from https://aistudio.google.com/app/apikey and add it to your .env file.")
-    
+    if not GROQ_API_KEY:
+         raise ValueError("GROQ_API_KEY is missing. Please ensure it is set in your .env file.")
+
     available_actions_list = []
     for action in action_keys:
         required = ACTION_REQUIRED_PARAMS.get(action, [])
@@ -90,28 +84,43 @@ Available Actions: {available_actions_prompt}
 
 """ + user_text  # user_text contains "Conversation so far: ... User now: ..." from dialog_manager
 
+    # Groq OpenAI-compatible endpoint
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    # Request body
+    body = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that outputs strictly in JSON format." 
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.3,
+        "max_tokens": 1024
+    }
     try:
-        import google.generativeai as genai
-        
-        genai.configure(api_key=GEMINI_API_KEY)
-        
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash-preview-05-20",
-            system_instruction="You are a helpful assistant that outputs strictly in JSON format.",
-            generation_config=genai.GenerationConfig(
-                temperature=0.3,
-                max_output_tokens=1024,
-                response_mime_type="application/json",
-            )
-        )
-        
-        response = model.generate_content(prompt)
-        
-        content = response.text
-        
+        resp = requests.post(url, headers=headers, json=body, timeout=60)
+
+        if resp.status_code != 200:
+             logger.error(f"LLM API Error: {resp.text}")
+             raise Exception(f"LLM API call failed with status {resp.status_code}: {resp.text}")
+        response_json = resp.json()
+
+        # Extract content from Groq response
+        content = response_json["choices"][0]["message"]["content"]
+
         # Parse JSON
         result = json.loads(content)
-        
+
         if not isinstance(result, dict):
             logger.error(f"LLM returned non-dict JSON: {result}")
             return {
@@ -119,12 +128,12 @@ Available Actions: {available_actions_prompt}
                 "actions": [],
                 "reply": "I'm having trouble processing that request."
             }
-            
+
         return result
     except (json.JSONDecodeError, KeyError) as e:
         logger.error("Invalid or unexpected LLM response format", exc_info=True)
+        # Fallback logging
         logger.error(f"Raw content received: {content if 'content' in locals() else 'None'}")
         raise Exception("Invalid model output. Expected valid JSON but failed to parse.")
     except Exception as e:
         logger.exception("Unexpected error during LLM call")
-        raise e

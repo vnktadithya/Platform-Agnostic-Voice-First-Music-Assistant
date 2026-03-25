@@ -1,77 +1,78 @@
-# services/speech_to_text.py
-# Production: Google Gemini (Azure-compatible)
-# For the original Groq (lowest-latency) version, see speech_to_text.groq.py
+import requests
 import os
-import io
 import base64
 import logging
 from dotenv import load_dotenv
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 class SpeechToTextService:
     @staticmethod
     def transcribe_audio(file_obj) -> str:
         """
-        Transcribes audio using Google Gemini's multimodal capabilities.
+        Transcribes audio using Groq's Whisper-large-v3.
         Accepts a file-like object (bytesIO or UploadFile.file) directly.
-        
-        Gemini natively transliterates foreign words (Telugu, Hindi, Tamil, etc.)
-        into English alphabets exactly as they sound, without translating meaning.
-        
-        For local development with even lower latency, swap to speech_to_text.groq.py
-        which uses Groq's LPU-powered Whisper-large-v3.
         """
-        if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is missing. Get a free key from https://aistudio.google.com/app/apikey and add it to your .env file.")
+        if not GROQ_API_KEY:
+            raise ValueError("GROQ_API_KEY is missing. Please get a free key from https://console.groq.com/keys and add it to your .env file.")
+
+        url = "https://api.groq.com/openai/v1/audio/transcriptions"
+        
+        # English-only prompt enforcement
+        prompt_text = (
+            "The transcript is in English alphabets only. "
+            "Even foreign words (like Telugu, Tamil, Hindi) are written strictly in English script (transliterated). "
+            "Example: Play nuvvu nenantu, play manasu palike. No native scripts."
+        )
+
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}"
+        }
 
         try:
-            import google.generativeai as genai
-            
-            genai.configure(api_key=GEMINI_API_KEY)
-            
-            # Read the audio bytes
+            # Check if file_obj is bytes, wrap it if so
             if isinstance(file_obj, bytes):
-                audio_bytes = file_obj
-            else:
-                audio_bytes = file_obj.read()
+                import io
+                file_obj = io.BytesIO(file_obj)
+
+            files = {
+                "file": ("audio.wav", file_obj, "audio/wav")
+            }
+            data = {
+                "model": "whisper-large-v3",
+                "temperature": "0",
+                "response_format": "json",
+                "language": "en",
+                "prompt": prompt_text
+            }
             
-            # Encode audio as base64 for inline data
-            audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
-            
-            model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash-preview-05-20",
-                generation_config=genai.GenerationConfig(
-                    temperature=0.0,
-                    max_output_tokens=1024,
-                )
+            session = requests.Session()
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+                allowed_methods=["POST"]
             )
-            
-            # Transliteration prompt: output must be in English letters ONLY
-            prompt_text = (
-                "Transcribe this audio into English text. "
-                "If the speaker uses any non-English words (like Telugu, Hindi, Tamil, Spanish, etc.), "
-                "transliterate those words into English alphabets exactly as they sound. "
-                "Do NOT translate the meaning. Just write how the words sound in English letters. "
-                "Example: If someone says a Telugu song name, write it as 'nuvvu nenantu' not the Telugu script. "
-                "Output ONLY the transcribed text, nothing else. No quotes, no explanations."
-            )
-            
-            response = model.generate_content([
-                prompt_text,
-                {
-                    "mime_type": "audio/wav",
-                    "data": audio_b64
-                }
-            ])
-            
-            transcript = response.text.strip()
-            
-            logger.info(f"Gemini Transcription: {transcript}")
+
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("https://", adapter)
+
+            response = session.post(url, headers=headers, files=files, data=data, timeout=30)
+
+            if response.status_code != 200:
+                logger.error(f"Groq STT Error: {response.text}")
+                raise Exception(f"Groq STT API Failed: {response.status_code} - {response.text}")
+
+            result = response.json()
+            transcript = result.get("text", "").strip()
+
+            logger.info(f"Groq Transcription: {transcript}")
             return transcript
 
         except Exception as e:
-            logger.error(f"Gemini STT failed: {str(e)}", exc_info=True)
+            logger.error(f"Groq STT failed: {str(e)}", exc_info=True)
             raise e
