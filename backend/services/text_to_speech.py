@@ -1,78 +1,54 @@
 # services/text_to_speech.py
-# Production: Google Gemini TTS (Azure-compatible)
-# For the original Groq (lowest-latency) version, see text_to_speech.groq.py
+# High-Quota Production Version: Edge TTS
+# Provides unlimited, high-quality Microsoft Neural voices without API keys or daily quotas.
 import os
 import io
-import wave
-import base64
-import requests
+import asyncio
 import logging
+import edge_tts
 from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 class TextToSpeechService:
     @staticmethod
     def synthesize_speech(text: str) -> bytes:
         """
-        Synthesizes speech using Google Gemini's TTS capabilities via REST API.
-        Returns raw audio bytes (WAV) without writing to disk.
+        Synthesizes speech using Microsoft's Edge TTS engine.
+        Returns raw audio bytes (MP3 format which browsers handle better than raw WAV).
         
-        For local development with even lower latency, swap to text_to_speech.groq.py
-        which uses Groq's LPU-powered Orpheus TTS.
+        This is the preferred high-quota solution for the 2026 free tier.
         """
-        if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is missing. Get a free key from https://aistudio.google.com/app/apikey and add it to your .env file.")
-
         try:
-            # Gemini TTS REST API endpoint
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-            headers = {"Content-Type": "application/json"}
-            body = {
-                "contents": [{"parts": [{"text": text}]}],
-                "generationConfig": {
-                    "responseModalities": ["AUDIO"],
-                    "speechConfig": {
-                        "voiceConfig": {
-                            "prebuiltVoiceConfig": {
-                                "voiceName": "Kore"
-                            }
-                        }
-                    }
-                }
-            }
+            # You can change the voice here. 
+            # Examples: en-US-AvaNeural, en-US-AndrewNeural, te-IN-ShrutiNeural (Telugu)
+            VOICE = "en-US-AvaNeural"
             
-            resp = requests.post(url, headers=headers, json=body, timeout=60)
-            
-            if resp.status_code != 200:
-                logger.error(f"Gemini TTS Error: {resp.text}")
-                raise Exception(f"Gemini TTS API Failed: {resp.status_code} - {resp.text}")
-            
-            response_json = resp.json()
-            
-            # Extract base64 audio data from response
-            audio_b64 = response_json["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
-            audio_data = base64.b64decode(audio_b64)
-            
-            # The Gemini TTS API returns raw PCM 24kHz 16-bit mono audio
-            # We need to wrap it in a WAV header for browser playback
-            sample_rate = 24000
-            num_channels = 1
-            sample_width = 2  # 16-bit = 2 bytes
-            
-            wav_buffer = io.BytesIO()
-            with wave.open(wav_buffer, 'wb') as wav_file:
-                wav_file.setnchannels(num_channels)
-                wav_file.setsampwidth(sample_width)
-                wav_file.setframerate(sample_rate)
-                wav_file.writeframes(audio_data)
-            
-            wav_bytes = wav_buffer.getvalue()
-            logger.info(f"Gemini TTS generated {len(wav_bytes)} bytes of audio")
-            return wav_bytes
+            # edge-tts is asynchronous, so we run it in the event loop
+            async def generate():
+                communicate = edge_tts.Communicate(text, VOICE)
+                audio_data = b""
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        audio_data += chunk["data"]
+                return audio_data
+
+            # Check if there is already a running loop (common in FastAPI/Uvicorn)
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If in an async context, we need to handle this differently
+                    # But for now, since synthesize_speech is called synchronously 
+                    # from the worker/beat, we use a new thread or nested loop
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    return loop.run_until_complete(generate())
+                else:
+                    return loop.run_until_complete(generate())
+            except Exception:
+                return asyncio.run(generate())
 
         except Exception as e:
-            logger.error("Gemini text-to-speech synthesis failed", exc_info=True)
+            logger.error("Edge text-to-speech synthesis failed", exc_info=True)
             raise e

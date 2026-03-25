@@ -23,4 +23,5 @@ psycopg2-binary
 cryptography
 gunicorn
 google-generativeai
-google-genai
+edge-tts
+nest-asyncio

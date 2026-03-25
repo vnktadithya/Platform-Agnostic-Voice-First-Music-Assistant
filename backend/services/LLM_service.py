@@ -92,7 +92,7 @@ Available Actions: {available_actions_prompt}
 """ + user_text  # user_text contains "Conversation so far: ... User now: ..." from dialog_manager
 
     # Gemini REST API endpoint (bypasses SDK region restrictions)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     body = {
         "system_instruction": {
