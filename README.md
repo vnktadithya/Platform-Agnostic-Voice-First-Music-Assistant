@@ -11,7 +11,7 @@
   [![Whisper](https://img.shields.io/badge/STT-Whisper%20v3-green?style=for-the-badge)](https://openai.com/research/whisper)
 
   [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-  [![Live Demo](https://img.shields.io/badge/Demo-View%20Live-brightgreen?style=for-the-badge&logo=vercel)](https://sam-self-adaptive-music-intelligence.vercel.app)
+  [![Live Demo](https://img.shields.io/badge/Demo-View%20Live-brightgreen?style=for-the-badge&logo=azure)](https://zealous-tree-09e892300.6.azurestaticapps.net)
 
   <p align="center">
     <b>A Platform-Agnostic, Voice-Controlled, 3D Music Assistant.</b><br />
@@ -283,22 +283,19 @@ Once inside the application, click on mic button to activate the "Listening" sta
 
 ##  Deployment
 
-The project is live at **[sam-self-adaptive-music-intelligence.vercel.app](https://sam-self-adaptive-music-intelligence.vercel.app)**.
+The project is live on **Microsoft Azure**.
 
-### Deployment Stack (Vercel + Render)
-*   **Frontend**: Deployed on **Vercel** for global edge caching.
-*   **Backend**: Deployed on **Render** (Python Web Service).
-*   **Database**: Managed by **Supabase** (PostgreSQL).
-*   **Caching & Broker**: Managed by **Upstash** (Serverless Redis).
-*   **AI Models**: **Groq** (Llama 3.3, Whisper, Orpheus TTS).
+### 🏗️ Production Stack (Azure + Upstash)
+- **Frontend**: [Azure Static Web Apps](https://zealous-tree-09e892300.6.azurestaticapps.net) (Free Tier, CI/CD via GitHub Actions).
+- **Backend**: Azure VM running Docker Compose with **Caddy** for automated HTTPS.
+- **Database**: Azure PostgreSQL Flexible Server.
+- **Caching & Broker**: [Upstash](https://upstash.com/) (Serverless Redis - Low Latency).
+- **AI Models**: **Groq LPU Stack** (Llama 3.3 70B, Whisper v3, Orpheus).
 
 > [!IMPORTANT]
 > **Access & Testing Policy**
 > *   **SoundCloud**:  **Open to All**. You can log in with any active SoundCloud account to test the full functionality.
 > *   **Spotify**:  **Restricted**. Due to Spotify's "Development Mode" restrictions, you cannot log in unless your email is manually added to my Developer Dashboard. Additionally, a **Spotify Premium** account is required for playback control through API services.
-
-> [!NOTE]
-> **Cold Start Delay**: This project is deployed on Render's free tier, which spins down after 15 minutes of inactivity. If the demo feels unresponsive initially, please allow **1-2 minutes** for the backend to wake up.
 
 ### Azure Deployment (Always-On, 24/7)
 

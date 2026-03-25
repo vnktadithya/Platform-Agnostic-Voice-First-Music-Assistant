@@ -6,16 +6,10 @@ The **SAM Backend** is a high-performance, asynchronous FastAPI application that
 
 ## 🚀 Deployment
 
-### Render (Free Tier)
-The backend is configured for deployment on **Render** using the `render.yaml` blueprint.
+The backend is exclusively optimized for **Azure + Upstash** production environments.
 
-1.  **Web Service**: Runs the FastAPI app using `gunicorn` with `uvicorn` workers for production-grade concurrency.
-2.  **Worker Service**: Runs a separate `celery` worker process to handle background library synchronization (Gevent pool).
-3.  **Redis**: Utilized as both the Celery message broker and the real-time cache.
 
-Configuration is defined in `render.yaml`, with environment variables managed securely via the Render Dashboard.
-
-### Azure (Always-On, Docker Compose)
+### Azure Production (Always-On, Docker Compose)
 For 24/7 availability, the backend is also deployed on an **Azure VM** using `docker-compose.yml`:
 
 | Container | Role | Memory Limit |
@@ -191,4 +185,4 @@ SAM relies on Celery for tasks that take >200ms.
 
 *   **Metric**: We purposely offload library synchronization to Celery to keep the Voice API response time under strict limits.
 *   **Worker**: Runs on `gevent` pool to handle I/O bound tasks.
-*   **Beat**: Schedules the `refresh_all_spotify_libraries` and `refresh_all_soundcloud_libraries` task every 6 hours. This helps us to get the data from the respective platform if user performs any action internally.
+*   **Beat**: Schedules the `refresh_all_spotify_libraries` and `refresh_all_soundcloud_libraries` task every 6 hours.
