@@ -23,7 +23,7 @@ class TextToSpeechService:
         try:
             # You can change the voice here. 
             # Examples: en-US-AvaNeural, en-US-AndrewNeural, te-IN-ShrutiNeural (Telugu)
-            VOICE = "en-US-AvaNeural"
+            VOICE = "en-US-AndrewNeural"
             
             # edge-tts is asynchronous, so we run it in the event loop
             async def generate():
