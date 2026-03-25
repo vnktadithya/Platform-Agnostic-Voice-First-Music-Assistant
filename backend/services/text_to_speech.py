@@ -1,54 +1,60 @@
-# services/text_to_speech.py
-# High-Quota Production Version: Edge TTS
-# Provides unlimited, high-quality Microsoft Neural voices without API keys or daily quotas.
+# backend/services/text_to_speech.py
+import requests
 import os
 import io
-import asyncio
 import logging
-import edge_tts
+import asyncio
 from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 class TextToSpeechService:
     @staticmethod
     def synthesize_speech(text: str) -> bytes:
         """
-        Synthesizes speech using Microsoft's Edge TTS engine.
-        Returns raw audio bytes (MP3 format which browsers handle better than raw WAV).
-        
-        This is the preferred high-quota solution for the 2026 free tier.
+        Hybrid TTS Solution:
+        1. Primary: Groq Orpheus (Ultra-low latency < 200ms).
+        2. Fallback: Edge-TTS (Unlimited Microsoft Neural voices).
         """
+        # --- Tier 1: Groq Orpheus (LPU Speed) ---
+        if GROQ_API_KEY:
+            try:
+                url = "https://api.groq.com/openai/v1/audio/speech"
+                headers = {
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Content-Type": "application/json"
+                }
+                body = {
+                    "model": "canopylabs/orpheus-v1-english",
+                    "voice": "troy", 
+                    "response_format": "wav",
+                    "input": text
+                }
+                resp = requests.post(url, headers=headers, json=body, timeout=10)
+                if resp.status_code == 200:
+                    logger.info("Groq Orpheus TTS success.")
+                    return resp.content
+                logger.warning(f"Groq TTS Tier 1 failed: {resp.status_code}. Falling back to Edge-TTS.")
+            except Exception as e:
+                logger.warning(f"Groq TTS Tier 1 error: {e}. Falling back to Edge-TTS.")
+
+        # --- Tier 2: Edge-TTS (Free & Robust) ---
         try:
-            # You can change the voice here. 
-            # Examples: en-US-AvaNeural, en-US-AndrewNeural, te-IN-ShrutiNeural (Telugu)
-            VOICE = "en-US-AndrewNeural"
+            import edge_tts
+            import nest_asyncio
+            nest_asyncio.apply()
             
-            # edge-tts is asynchronous, so we run it in the event loop
-            async def generate():
-                communicate = edge_tts.Communicate(text, VOICE)
+            async def generate_edge():
+                communicate = edge_tts.Communicate(text, "en-US-AndrewNeural")
                 audio_data = b""
                 async for chunk in communicate.stream():
                     if chunk["type"] == "audio":
                         audio_data += chunk["data"]
                 return audio_data
 
-            # Check if there is already a running loop (common in FastAPI/Uvicorn)
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # If in an async context, we need to handle this differently
-                    # But for now, since synthesize_speech is called synchronously 
-                    # from the worker/beat, we use a new thread or nested loop
-                    import nest_asyncio
-                    nest_asyncio.apply()
-                    return loop.run_until_complete(generate())
-                else:
-                    return loop.run_until_complete(generate())
-            except Exception:
-                return asyncio.run(generate())
-
+            return asyncio.run(generate_edge())
         except Exception as e:
-            logger.error("Edge text-to-speech synthesis failed", exc_info=True)
+            logger.error(f"Dual-Tier TTS failed: {str(e)}", exc_info=True)
             raise e
