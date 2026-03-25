@@ -41,7 +41,7 @@ Configuration is defined in `docker-compose.yml`, with environment variables loa
 - **Database**: PostgreSQL, SQLAlchemy (ORM), Redis
 - **Real-time & Async**: Python-SocketIO, Uvicorn (ASGI)
 - **Task Queue**: Celery (Gevent), Redis Broker
-- **AI & Processing**: Groq Cloud (Llama 3.3, Whisper, Orpheus TTS) for local development, Google Gemini (3.1 Flash-Lite, 2.5 Flash, 2.5 Flash TTS) for cloud deployment, TheFuzz
+- **AI & Processing**: Groq LPU Stack (Llama 3.3 70B, Whisper v3, Orpheus TTS), Edge-TTS (Hybrid Fallover), TheFuzz
 - **Testing**: Pytest
 
 ---
@@ -53,11 +53,11 @@ The backend prioritizes **latency** and **accuracy**. The core processing loop i
 ### 1. The Voice/Chat Pipeline
 1.  **Ingestion & Transliteration**:
     *   **Endpoint**: `/v1/chat/process_voice` or `/v1/chat/process_text`.
-    *   **STT Engine**: Groq (Whisper-large-v3) for local dev; Gemini 2.5 Flash for cloud deployment.
+    *   **STT Engine**: **Groq Whisper-large-v3**. We use a specialized "Phonetic Prompt" to ensure Indian languages (Telugu, Hindi etc.) are written in Latin script for music search.
     *   **Innovation**: We use a custom system prompt to force *transliteration* of non-English terms (e.g., Telugu song titles) into Latin script. This is critical for compatibility with music search APIs.
 2.  **Intent Understanding (LLM)**:
-    *   **Engine**: Groq (Llama 3.3-70B) for local dev; Gemini 3.1 Flash-Lite for cloud deployment.
-    *   **Service**: `LLM_service.py` wraps the LLM calls (Gemini production version). Original Groq implementation preserved in `LLM_service.groq.py`.
+    *   **Engine**: **Groq Llama 3.3-70B-Versatile**. Provides sub-200ms TTFT and 14,400 RPD free tier.
+    *   **Service**: `LLM_service.py` is the central brain for all deployments.
     *   **Context**: Controlled by `DialogManager`, which maintains a session history (via `SessionManager` + Redis) to support follow-up queries (e.g., "Play it" implies the song mentioned previously).
     *   **Output**: Structured JSON containing the `action` (PLAY, PAUSE, ADD_TO_PLAYLIST, LIKE_SONG ETC), `parameters` (song_name, artist_name, playlist_name etc), and `reply` (text response).
 3.  **Action Execution**:
@@ -83,14 +83,14 @@ The logic is modularized into `backend/services/`:
 | Service | Responsibility |
 | :--- | :--- |
 | **`dialog_manager.py`** | Manages conversation flow. It orchestrates the LLM call, action parsing, and response generation. |
-| **`LLM_service.py`** | Wraps interactions with the Google Gemini API (production). Original Groq version preserved in `LLM_service.groq.py`. |
+| **`LLM_service.py`** | Wraps interactions with the **Groq Llama 3.3 70B** API. 0.5s end-to-end latency. |
 | **`music_action_service.py`** | The "Router". It receives high-level intents (PLAY, SKIP) and delegates them to the correct platform adapter. |
 | **`session_manager.py`** | Manages user session state and context history in Redis, enabling multi-turn conversations. |
 | **`socket_manager.py`** | Handles real-time WebSockets to push state updates (LISTENING, THINKING, SPEAKING) to the frontend. |
 | **`library_sync_service.py`** | Handles the massive job of fetching, parsing, and storing thousands of songs/playlists from Spotify/SoundCloud into our local DB. |
 | **`data_sync_service.py`** | The "Glue" connecting Celery workers to the sync logic. Handles token refreshing and task distribution. |
-| **`speech_to_text.py`** | Gemini multimodal audio transcription with native transliteration. Groq version in `speech_to_text.groq.py`. |
-| **`text_to_speech.py`** | Gemini TTS voice synthesis. Groq version in `text_to_speech.groq.py`. |
+| **`speech_to_text.py`** | **Groq Whisper v3** audio transcription with phonetic transliteration. |
+| **`text_to_speech.py`** | **Hybrid TTS**: Groq Orpheus (Primary) + Edge-TTS (Fallback). |
 | **`cache_service.py`** | Abstracted interface for Redis operations. |
 
 ---

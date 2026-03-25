@@ -7,8 +7,9 @@
   [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
   [![Three.js](https://img.shields.io/badge/Three.js-Black?style=for-the-badge&logo=three.js&logoColor=white)](https://threejs.org/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-  [![Groq](https://img.shields.io/badge/AI-Groq%20Llama3-orange?style=for-the-badge)](https://groq.com/)
-  [![Gemini](https://img.shields.io/badge/AI-Gemini%202.5-blue?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
+  [![Groq](https://img.shields.io/badge/AI-Groq%20LPU-orange?style=for-the-badge&logoColor=white)](https://groq.com/)
+  [![Whisper](https://img.shields.io/badge/STT-Whisper%20v3-green?style=for-the-badge)](https://openai.com/research/whisper)
+
   [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
   [![Live Demo](https://img.shields.io/badge/Demo-View%20Live-brightgreen?style=for-the-badge&logo=vercel)](https://sam-self-adaptive-music-intelligence.vercel.app)
 
@@ -22,9 +23,10 @@
 
 ##  Overview
 
-**SAM** (Self Adaptive Music) is a next-generation voice assistant designed to revolutionize how you interact with music. Breaking away from static playlists, SAM uses advanced **LLMs (Groq Llama 3)** to understand natural language and intent, executing complex commands across multiple platforms like **Spotify** and **SoundCloud**. For always-on cloud deployments (e.g., Azure), SAM seamlessly falls back to **Google Gemini** models, since Groq's free tier blocks datacenter IPs.
+**SAM** (Self Adaptive Music) is a next-generation voice assistant designed to revolutionize how you interact with music. Breaking away from static playlists, SAM uses advanced **LLMs (Groq Llama 3.3 70B)** to understand natural language and intent, executing complex commands across multiple platforms like **Spotify** and **SoundCloud**. 
 
 All of this happens within a stunning **3D immersive interface** built with React Three Fiber, where the environment reacts to the music and your voice in real-time.
+
 
 ---
 
@@ -118,15 +120,10 @@ Before setting up SAM, ensure you meet the requirements for the music platforms 
 > 1.   **Active Account**: A free SoundCloud account is sufficient. No premium subscription is needed.
 > 2.   Register your new soundcloud application: [Create SoundCloud Application](https://soundcloud.com/you/apps/new).
 >
-> * **Groq API key (recommended for local development):**
+> * **Groq API key (Required for Logic, STT & TTS):**
 > 
->   Get your API key here: [API keys - GroqCloud](https://console.groq.com/keys)
->
-> * **Google Gemini API key (required for cloud/Azure deployment):**
-> 
->   Get your free API key here: [Google AI Studio](https://aistudio.google.com/app/apikey)
->   
->   *Gemini is used for cloud deployments because Groq's free tier blocks datacenter IPs. For local development, Groq is recommended for its ultra-low latency.*
+>   Get your free key here: [API keys - GroqCloud](https://console.groq.com/keys)
+>   *Note: Our Groq stack (Whisper v3) is optimized with phonetic prompts to handle multilingual transliteration perfectly on Azure.*
 
 ---
 
@@ -175,13 +172,9 @@ REDIS_PORT=6379
 SESSION_SECRET_KEY="your-session-secret-key"
 ENCRYPTION_KEY = "your-encryption-key"
 
-# --- AI & Voice (Local Development) ---
+# --- AI & Voice (Production) ---
 # Logic, TTS & STT: https://console.groq.com/keys
 GROQ_API_KEY="gsk_..."
-
-# --- AI & Voice (Cloud/Azure Deployment) ---
-# Required for Azure: https://aistudio.google.com/app/apikey
-GEMINI_API_KEY="AIza..."
 
 # --- Spotify ---
 SPOTIFY_CLIENT_ID="your_spotify_client_id"
@@ -308,15 +301,15 @@ The project is live at **[sam-self-adaptive-music-intelligence.vercel.app](https
 
 ### Azure Deployment (Always-On, 24/7)
 
-For production-grade 24/7 availability without cold-start delays, SAM is also deployed on **Microsoft Azure**:
+For production-grade 24/7 availability without cold-start delays, SAM is deployed on **Microsoft Azure**:
 
 *   **Frontend**: [Azure Static Web Apps](https://zealous-tree-09e892300.6.azurestaticapps.net) (Free Tier, CI/CD via GitHub Actions).
 *   **Backend**: Azure VM running Docker Compose with **Caddy** for automated HTTPS.
 *   **Database**: Azure PostgreSQL Flexible Server.
-*   **AI Models**: **Google Gemini** (3.1 Flash-Lite for LLM, 2.5 Flash for STT/TTS).
+*   **AI Models**: **Groq LPU Stack** (Llama 3.3 70B, Whisper v3, Orpheus).
 
-> [!NOTE]
-> **Why Gemini instead of Groq on Azure?** Groq's free tier actively blocks API requests originating from cloud provider datacenter IPs (Azure, AWS, GCP). To maintain 24/7 uptime at zero cost, the Azure deployment uses Google Gemini as a drop-in replacement. The original Groq implementations are preserved as `backend/services/*.groq.py` backup files and remain the **recommended choice for local development** due to Groq's unmatched LPU inference speed.
+> [!TIP]
+> **Performance Edge**: The Groq hardware (LPU) provides sub-200ms inference, ensuring your voice commands are executed in near real-time, even from a cloud datacenter. Our implementation uses specialized phonetic prompts to handle multilingual music metadata natively.
 
 ---
 
