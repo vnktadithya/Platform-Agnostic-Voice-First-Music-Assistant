@@ -123,7 +123,8 @@ Before setting up SAM, ensure you meet the requirements for the music platforms 
 > * **Groq API key (Required for Logic, STT & TTS):**
 > 
 >   Get your free key here: [API keys - GroqCloud](https://console.groq.com/keys)
->   *Note: Our Groq stack (Whisper v3) is optimized with phonetic prompts to handle multilingual transliteration perfectly on Azure.*
+>   
+> *Note: Our Groq stack (Whisper v3) is optimized with phonetic prompts to handle multilingual transliteration perfectly on Azure.*
 
 ---
 
