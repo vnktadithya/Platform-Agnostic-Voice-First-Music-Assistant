@@ -43,6 +43,7 @@ All of this happens within a stunning **3D immersive interface** built with Reac
 | **🧠 Adaptive Intelligence** | Logs user interactions and feedback to build a dataset for future fine-tuning, allowing the model to learn your preferences over time. |
 | **🔇 Smart Audio Ducking** | Intelligent volume modulation that automatically lowers music volume when the assistant speaks or listens, ensuring clear voice command recognition without pausing playback. |
 | **🔐 Secure Data Protection** | All sensitive credentials (access & refresh tokens) are encrypted at rest using **Fernet (AES) symmetric encryption**, ensuring your account data remains secure in the database. |
+| **🐳 Containerized Stack** | Ready-to-use **Docker Compose** configuration for the entire backend ecosystem (FastAPI, Celery, Redis, Caddy), ensuring seamless deployment on **Azure VMs**. |
 
 ---
 
