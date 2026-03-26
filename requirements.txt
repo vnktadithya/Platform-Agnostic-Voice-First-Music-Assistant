@@ -6,7 +6,6 @@ requests
 urllib3
 httpx
 pydantic
-elevenlabs
 python-multipart
 sqlalchemy
 redis
@@ -22,7 +21,5 @@ python-socketio
 psycopg2-binary
 cryptography
 gunicorn
-google-generativeai
 edge-tts
 nest-asyncio
-faster-whisper
