@@ -123,8 +123,6 @@ Before setting up SAM, ensure you meet the requirements for the music platforms 
 > * **Groq API key (Required for Logic, STT & TTS):**
 > 
 >   Get your free key here: [API keys - GroqCloud](https://console.groq.com/keys)
->   
-> *Note: Our Groq stack (Whisper v3) is optimized with phonetic prompts to handle multilingual transliteration perfectly on Azure.*
 
 ---
 
@@ -285,7 +283,7 @@ Once inside the application, click on mic button to activate the "Listening" sta
 
 The project is live on **Microsoft Azure**.
 
-### 🏗️ Production Stack (Azure + Upstash)
+###  Production Stack (Azure + Upstash)
 - **Frontend**: [Azure Static Web Apps](https://zealous-tree-09e892300.6.azurestaticapps.net) (Free Tier, CI/CD via GitHub Actions).
 - **Backend**: Azure VM running Docker Compose with **Caddy** for automated HTTPS.
 - **Database**: Azure PostgreSQL Flexible Server.
@@ -297,17 +295,8 @@ The project is live on **Microsoft Azure**.
 > *   **SoundCloud**:  **Open to All**. You can log in with any active SoundCloud account to test the full functionality.
 > *   **Spotify**:  **Restricted**. Due to Spotify's "Development Mode" restrictions, you cannot log in unless your email is manually added to my Developer Dashboard. Additionally, a **Spotify Premium** account is required for playback control through API services.
 
-### Azure Deployment (Always-On, 24/7)
-
-For production-grade 24/7 availability without cold-start delays, SAM is deployed on **Microsoft Azure**:
-
-*   **Frontend**: [Azure Static Web Apps](https://zealous-tree-09e892300.6.azurestaticapps.net) (Free Tier, CI/CD via GitHub Actions).
-*   **Backend**: Azure VM running Docker Compose with **Caddy** for automated HTTPS.
-*   **Database**: Azure PostgreSQL Flexible Server.
-*   **AI Models**: **Groq LPU Stack** (Llama 3.3 70B, Whisper v3, Orpheus).
-
 > [!TIP]
-> **Performance Edge**: The Groq hardware (LPU) provides sub-200ms inference, ensuring your voice commands are executed in near real-time, even from a cloud datacenter. Our implementation uses specialized phonetic prompts to handle multilingual music metadata natively.
+> **Performance Edge**: The Groq hardware (LPU) provides sub-200ms inference, ensuring the voice commands are executed in near real-time, even from a cloud datacenter. Our implementation uses specialized phonetic prompts to handle multilingual music metadata natively.
 
 ---
 
